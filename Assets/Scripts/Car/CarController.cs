@@ -124,34 +124,34 @@ public class CarController : MonoBehaviour
 		WheelHit hit;
 		if (front_left.GetGroundHit(out hit))
 		{
-			front_left_mesh.transform.position = new Vector3(
-				front_left_mesh.transform.position.x,
-				hit.point.y + wheels_offset,
-				front_left_mesh.transform.position.z
+			front_left_mesh.transform.localPosition = new Vector3(
+				0,
+				hit.point.y - front_left.transform.position.y + wheels_offset,
+				0
 			);
 		}
 		if (front_right.GetGroundHit(out hit))
 		{
-			front_right_mesh.transform.position = new Vector3(
-				front_right_mesh.transform.position.x,
-				hit.point.y + wheels_offset,
-				front_right_mesh.transform.position.z
+			front_right_mesh.transform.localPosition = new Vector3(
+				0,
+				hit.point.y - front_right.transform.position.y + wheels_offset,
+				0
 			);
 		}
 		if (rear_left.GetGroundHit(out hit))
 		{
-			rear_left_mesh.transform.position = new Vector3(
-				rear_left_mesh.transform.position.x,
-				hit.point.y + wheels_offset,
-				rear_left_mesh.transform.position.z
+			rear_left_mesh.transform.localPosition = new Vector3(
+				0,
+				hit.point.y - rear_left.transform.position.y + wheels_offset,
+				0
 			);
 		}
 		if (rear_right.GetGroundHit(out hit))
 		{
-			rear_right_mesh.transform.position = new Vector3(
-				rear_right_mesh.transform.position.x,
-				hit.point.y + wheels_offset,
-				rear_right_mesh.transform.position.z
+			rear_right_mesh.transform.localPosition = new Vector3(
+				0,
+				hit.point.y - rear_right.transform.position.y + wheels_offset,
+				0
 			);
 		}
 	}

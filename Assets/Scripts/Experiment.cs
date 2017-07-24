@@ -1,148 +1,230 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading;
 using System.IO;
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Experiment : MonoBehaviour
 {
-	public 		GUISkin				gui_skin						= null;
-	public 		GameObject 			car_prefab						= null;
-	public 		Transform			car_spawner						= null;
-	public		ObserverCamera		observer_cam					= null;
-	public		uint				amount							= 20;
-	public 		float				session_time					= 20.0f;
-
-	private		GameObject[]		car_objects;
-	private		CarAI[]				car_ai_objects;
-	private		CarScoreManager[]	car_score_objects;
-	private 	PSO					particle_swarm_optimisation;
-	private 	string				output_message					= "";
-	private 	float				session_timer					= 0.0f;
-	private 	uint				current_epoch					= 0;
-	private 	Thread				thread_session					= null;
-	private 	List<Action>		queued_functions				= new List<Action>();
-
-	private void Start()
+	public enum Techniques
 	{
-		session_timer = session_time;
-		output_message = "Setting Up Project";
-		//Create multiple cars for training
-		car_objects = new GameObject[amount];
-		car_ai_objects = new CarAI[amount];
-		car_score_objects = new CarScoreManager[amount];
-		for (uint i = 0; i < amount; i++)
+		PSO		= 0,
+		GA		= 1
+	}
+
+	[System.NonSerialized]
+	public	bool				session_activated			= false;
+
+	public 	GameObject			car_prefab					= null;
+	public 	Transform			spawner_position			= null;
+	public 	Text				output_log					= null;
+
+	private bool				signal_session_stop			= false;
+	private	float				session_length				= 60.0f;
+	private float				session_timer 				= 0.0f;
+	private int					agents_amount				= 20;
+	private int					current_epoch				= 0;
+	private float				best_score					= float.MinValue;
+	private float[]				best_weights;
+	private string				log							= "";
+	private Techniques			training_technique			= Techniques.PSO;
+
+	//Car
+	private	GameObject[]		current_cars;
+	private Rigidbody[]			car_body;
+	private CarAI[]				car_intelligence;
+	private CarScoreManager[]	car_score_manager;
+	private BaseNetwork[]		car_networks;
+
+	//Threading
+	private Thread				session_thread				= null;
+	private List<Action>		functions_queued			= null;
+	private ManualResetEvent	thread_wait					= null;
+	private ManualResetEvent	thread_session_wait			= null;
+
+	public void StartTraining()
+	{
+		current_epoch			= 0;
+		best_score				= float.MinValue;
+		best_weights			= null;
+		session_activated 		= true;
+		signal_session_stop 	= false;
+		thread_wait				= new ManualResetEvent(false);
+		thread_session_wait		= new ManualResetEvent(false);
+		functions_queued 		= new List<Action>();
+		session_thread 			= new Thread(new ThreadStart(ThreadShession));
+		session_thread.Start();
+	}
+
+	public void StopTraining()
+	{
+		log = "Waiting for session to finish...";
+		signal_session_stop 	= true;
+		thread_session_wait.Set();
+	}
+
+	public void ChangeAgentNumber(float n)
+	{
+		agents_amount = Mathf.RoundToInt(n);
+	}
+
+	public void ChangeSessionTime(float t)
+	{
+		session_length = t;
+	}
+
+	public void ChangeTechnique(int t)
+	{
+		training_technique = (Techniques)t;
+	}
+
+	public void ChangeSpeedMultiplier(float s)
+	{
+		Time.timeScale = s;
+	}
+
+	public void SaveWeights()
+	{
+		if (best_weights == null)
 		{
-			car_objects[i] = (GameObject)Instantiate(
-				car_prefab,
-				car_spawner.position,
-				car_spawner.rotation
-			);
-			car_ai_objects[i] = car_objects[i].GetComponent<CarAI>();
-			car_score_objects[i] = car_objects[i].GetComponent<CarScoreManager>();
-			car_ai_objects[i].Start();
+			log = "Please wait till atleast 1 epoch is complete.";
 		}
-		output_message = "Waiting for cars to initialize...";
-		particle_swarm_optimisation = new PSO(GetAllNetworks());
-		thread_session = new Thread(StartSession);
-		thread_session.Start();
+		else
+		{
+			TextWriter write = new StreamWriter("Weights.txt");
+			for (int i = 0; i < best_weights.Length; i++)
+			{
+				write.WriteLine(best_weights);
+			}
+			write.Close();
+			log = "Weights stored in 'Weights.txt'";
+		}
 	}
 
 	private void Update()
 	{
-		session_timer -= Time.deltaTime;
-		//Execute queued functions from thread
-		if (queued_functions.Count > 0)
+		if (functions_queued != null && functions_queued.Count > 0)
 		{
-			Action function_to_execute = queued_functions[0];
-			queued_functions.RemoveAt(0);
-
-			function_to_execute();
+			Action function_to_run = functions_queued[0];
+			functions_queued.RemoveAt(0);
+			function_to_run();
 		}
-		if (Input.GetKeyDown(KeyCode.K))
+		if (thread_session_wait != null && session_timer <= 0)
 		{
-			thread_session.Abort();
-			Debug.Log("Killed Thread");
+			thread_session_wait.Set();
+		}
+		if (session_timer > 0)
+		{
+			session_timer -= Time.deltaTime;
+		}
+		if (output_log != null)
+		{
+			output_log.text = 	"Technique: " + training_technique + "\n" +
+								"Epoch: " + current_epoch + "\n" +
+								"Session Time: " + session_timer + "\n" + 
+								"Best Score: " + best_score + "\n" +
+								log;
 		}
 	}
 
-	private void StartSession()
+	private void ThreadShession()
 	{
-		while(true)
+		functions_queued.Add(ResetCars);
+		thread_wait.WaitOne();
+		thread_wait.Reset();
+		
+		BaseTechnique training;
+		switch(training_technique)
 		{
-			output_message = "Epoch Started";
-			//Reset car for next session
-			output_message = "Reset Cars";
-			queued_functions.Add(()=>{
-				for (uint i = 0; i < amount; i++)
+			case Techniques.PSO:
+				training = new PSO(car_networks);
+				break;
+			case Techniques.GA:
+				training = new GA(car_networks);
+				break;
+			default:
+				log = "ERROR: Unkown training technique...";
+				return;
+		}
+
+		while (!signal_session_stop)
+		{
+			log = "Reseting Cars";
+			//Update car positions
+			functions_queued.Add(() => {
+				for (int i = 0; i < current_cars.Length; i++)
 				{
-					Rigidbody car_body = car_objects[i].GetComponent<CarController>().body;
-					car_body.gameObject.transform.position = Vector3.zero;
-					car_body.gameObject.transform.rotation = Quaternion.identity;
-					car_body.velocity = Vector3.zero;
-					car_body.angularVelocity = Vector3.zero;
-					car_score_objects[i].ResetScore();
+					car_body[i].transform.position 	= spawner_position.transform.position;
+					car_body[i].transform.rotation 	= spawner_position.transform.rotation;
+					car_body[i].velocity 			= Vector3.zero;
+					car_body[i].angularVelocity 	= Vector3.zero;
+					car_score_manager[i].ResetScore();
+					thread_wait.Set();
 				}
 			});
-			//Get new weights to be tested in the session
-			output_message = "Updating Weights";
-			particle_swarm_optimisation.UpdateWeights();
-			//Start session
-			output_message = "Session Started";
-			for (uint i = 0; i < amount; i++)
+			thread_wait.WaitOne();
+			thread_wait.Reset();
+			log = "Updating Weights";
+			//Update car weights & biases
+			training.UpdateWeights();
+			//Start session to get car score
+			for (int i = 0; i < agents_amount; i++)
 			{
-				car_ai_objects[i].activate_car = true;
-				car_score_objects[i].activate_car = true;
+				car_intelligence[i].activate_car 	= true;
+				car_score_manager[i].activate_car 	= true;
+				car_intelligence[i].GetNetwork().SetWeightsData(car_networks[i].GetWeightsData());
 			}
-			//Wait for session to finish
-			Thread.Sleep(Mathf.RoundToInt(session_time) * 1000);
-			//Stop Session
-			for (uint i = 0; i < amount; i++)
+			log = "Session Started";
+			thread_session_wait.Reset();
+			session_timer = session_length;
+			thread_session_wait.WaitOne();
+			if (!signal_session_stop)
 			{
-				car_ai_objects[i].activate_car = false;
-				car_score_objects[i].activate_car = false;
+				//Stop session
+				for (int i = 0; i < agents_amount; i++)
+				{
+					car_intelligence[i].activate_car 	= false;
+					car_score_manager[i].activate_car 	= false;
+					car_networks[i].SetNetworkScore(car_intelligence[i].GetNetwork().GetNetworkScore());
+				}
+				log = "Comparing Results";
+				//Compare all cars scores
+				training.ComputeEpoch();
+				//Update log info
+				best_score 		= training.GetBestScore();
+				best_weights 	= training.GetBestWeights();
+				current_epoch++;
 			}
-			//Compare results from session
-			output_message = "Computing Score";
-			particle_swarm_optimisation.ComputeEpoch();
-			output_message = "End of Epoch";
-			//Update session & epoch info
-			if (session_time < 120)
-				session_time += 5;
-			session_timer = session_time;
-			current_epoch++;
 		}
+		session_activated = false;
 	}
-/*
-	private void OnGUI()
-	{
-		if (gui_skin)
-			GUI.skin = gui_skin;
-		if (output_message == "Session Started")
-			GUILayout.Box(output_message + ": " + session_timer);
-		else
-			GUILayout.Box(output_message);
-		
-		GUILayout.Box("Current Epoch: " + current_epoch);
 
-		if (GUILayout.Button("SAVE WEIGHTS", GUILayout.Width(500.0f)))
-		{
-			double[] best_weights = particle_swarm_optimisation.GetBestWeights();
-			TextWriter fs = new StreamWriter("Weights.txt");
-			for (uint i = 0; i < best_weights.Length; i++)
-				fs.WriteLine(best_weights[i].ToString() + ", ");
-			fs.Close();
-		}
-	}
- */
-	private BaseNetwork[] GetAllNetworks()
+	private void ResetCars()
 	{
-		BaseNetwork[] networks = new BaseNetwork[amount];
-		for (uint i = 0; i < amount; i++)
+		if (current_cars != null)
 		{
-			networks[i] = car_objects[i].GetComponent<CarAI>().GetNetwork();
+			for (int i = 0; i < current_cars.Length; i++)
+			{
+				Destroy(current_cars[i]);
+			}
 		}
-		return networks;
+		
+		current_cars 		= new GameObject[agents_amount];
+		car_body			= new Rigidbody[agents_amount];
+		car_intelligence 	= new CarAI[agents_amount];
+		car_score_manager 	= new CarScoreManager[agents_amount];		
+		car_networks 		= new BaseNetwork[agents_amount];
+		for (int i = 0; i < current_cars.Length; i++)
+		{
+			current_cars[i] 		= (GameObject)Instantiate(car_prefab, spawner_position.position, spawner_position.rotation);
+			car_intelligence[i]		= current_cars[i].GetComponent<CarAI>();
+			car_score_manager[i] 	= current_cars[i].GetComponent<CarScoreManager>();
+			car_body[i]				= current_cars[i].transform.GetChild(0).gameObject.GetComponent<Rigidbody>();
+
+			car_intelligence[i].Start();
+			car_networks[i] 		= car_intelligence[i].GetNetwork();
+		}
+		thread_wait.Set();
 	}
 }

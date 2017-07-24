@@ -1,94 +1,100 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class MFNN : BaseNetwork
 {
-	private		float						network_score;
-	private		double[][]					neurons;
-	private		double[][]					biases;
-	private 	double[][][]				synapsis;
-	private 	uint[] 						neurons_per_layer;
-	private 	ActivationType[] 			activation_per_layer;
-	private 	uint						weights_length;
-	public MFNN(uint[] neurons_per_layer, ActivationType[] activation_per_layer)
-	{
-		//Error Checking
-		Debug.Assert(neurons_per_layer.Length > 1, "Layer size must be greater than one.");
-		Debug.Assert(neurons_per_layer.Length == activation_per_layer.Length, "Neurons per layer and activation per layer do not match.");
-		for (uint i = 0; i < neurons_per_layer.Length; i++)
-			Debug.Assert(neurons_per_layer[i] > 0, "A layer cannot contain 0 or less neurons.");
+	private 	float[][]			neurons;
+	private 	float[][]			biases;
+	private 	float[][][]			synapsis;
+	private		ActivationType[]	activation_per_layer;
+	private		int					weights_length				= 0;
+	private		float				network_score				= float.MinValue;
 
-		//Save Results
-		this.neurons_per_layer 		= neurons_per_layer;
-		this.activation_per_layer 	= activation_per_layer;
-	
-		//Setup Neurons
-		neurons = new double[neurons_per_layer.Length][];
-		for (uint i = 0; i < neurons.Length; i++)
+	public override float GetNetworkScore()
+	{
+		return network_score;
+	}
+	public override void SetNetworkScore(float s)
+	{
+		network_score = s;
+	}
+
+	public override int GetWeightsLength()
+	{
+		return weights_length;
+	}
+
+	public MFNN(int[] neurons_per_layer, ActivationType[] activation_per_layer)
+	{
+		//Error checking
+		Debug.Assert(neurons_per_layer.Length > 0, "There must be atleast 1 neuron in each layer.");
+		Debug.Assert(activation_per_layer.Length == neurons_per_layer.Length, "Activation array does not match neurons array.");
+		for (int i = 0; i < neurons_per_layer.Length; i++)
+			Debug.Assert(neurons_per_layer[i] > 0, "There must be atleast 1 node per layer.");
+
+		//Setup variables
+		this.activation_per_layer = activation_per_layer;
+		weights_length = 0;
+
+		//Setup neurons
+		neurons = new float[neurons_per_layer.Length][];
+		for (int i = 0; i < neurons.Length; i++)
 		{
-			neurons[i] 	= new double[neurons_per_layer[i]];
-			for (uint j = 0; j < neurons_per_layer[i]; j++)
+			Debug.Assert(neurons_per_layer[i] > 0, "There must be atleast 1 node per layer.");
+			neurons[i] = new float[neurons_per_layer[i]];
+			for(int j = 0; j < neurons[i].Length; j++)
 			{
-				neurons[i][j] 	= CommonFunctions.GetRandomNumber(-1.0f, 1.0f);
+				neurons[i][j] = Random.Range(-1.0f, 1.0f);
 			}
 		}
-
-		weights_length = 0;
-		//Setup Biases
-		biases = new double[neurons_per_layer.Length - 1][];
-		for (uint i = 0; i < biases.Length; i++)
+		//Setup biases
+		biases = new float[neurons_per_layer.Length - 1][];
+		for (int i = 0; i < biases.Length; i++)
 		{
-			biases[i] 	= new double[neurons_per_layer[i + 1]];
-			for (uint j = 0; j < neurons_per_layer[i + 1]; j++)
+			biases[i] = new float[neurons_per_layer[i + 1]];
+			for(int j = 0; j < biases[i].Length; j++)
 			{
-				biases[i][j] 	= CommonFunctions.GetRandomNumber(-1.0f, 1.0f);
+				biases[i][j] = Random.Range(-1.0f, 1.0f);
 				weights_length++;
 			}
 		}
-
-		//Setup Synapsis
-		synapsis = new double[neurons_per_layer.Length - 1][][];
-		for (uint i = 0; i < synapsis.Length; i++)
+		//Setup synapsis
+		synapsis = new float[neurons_per_layer.Length - 1][][];
+		for (int i = 0; i < synapsis.Length; i++)
 		{
-			synapsis[i] = new double[neurons_per_layer[i + 1]][];
-			for (uint j = 0; j < neurons_per_layer[i + 1]; j++)
+			synapsis[i] = new float[neurons_per_layer[i + 1]][];
+			for (int j = 0; j < synapsis[i].Length; j++)
 			{
-				synapsis[i][j] = new double[neurons_per_layer[i]];
-				for (uint k = 0; k < neurons_per_layer[i]; k++)
+				synapsis[i][j] = new float[neurons_per_layer[i]];
+				for (int k = 0; k < synapsis[i][j].Length; k++)
 				{
-					synapsis[i][j][k] = CommonFunctions.GetRandomNumber(-1.0f, 1.0f);
+					synapsis[i][j][k] = Random.Range(-1.0f, 1.0f);
 					weights_length++;
 				}
 			}
 		}
 	}
 
-	public override double[] Compute(double[] inputs)
+	public override float[] Compute(float[] inputs)
 	{
-		//Error Checking
-		Debug.Assert(inputs.Length == neurons_per_layer[0], "Input does not match input layer nodes");
-		//Copy Input Data
-		for (uint i = 0; i < neurons_per_layer[0]; i++)
-		{
-			neurons[0][i] = inputs[i];
-		}
+		//Error checking
+		Debug.Assert(inputs.Length == neurons[0].Length, "Input does not match the network's input layer.");
 
-		for (uint i = 0; i < neurons_per_layer.Length - 1; i++)
+		System.Array.ConstrainedCopy(inputs, 0, neurons[0], 0, inputs.Length);
+
+		for (int i = 0; i < neurons.Length - 1; i++)
 		{
-			
-			for (uint j = 0; j < neurons_per_layer[i + 1]; j++)
+			for (int j = 0; j < neurons[i + 1].Length; j++)
 			{
-				//Multiply weights and prev. neurons
-				double sum = 0.0;
-				for (uint k = 0; k < neurons_per_layer[i]; k++)
+				//Apply weights
+				float sum = 0.0f;
+				for (int k = 0; k < neurons[i].Length; k++)
 				{
-					sum += neurons[i][k] * synapsis[i][j][k];
+					sum += (neurons[i][k] * synapsis[i][j][k]);
 				}
 				//Apply bias
 				sum += biases[i][j];
 
- 
-				//Apply activation
+				//Apply activation function
 				switch(activation_per_layer[i + 1])
 				{
 					case ActivationType.LOGISTIC_SIGMOID:
@@ -100,93 +106,67 @@ public class MFNN : BaseNetwork
 					case ActivationType.HEAVISIDESTEP:
 						neurons[i + 1][j] = Activation.HeavisideStep(sum);
 						break;
+					case ActivationType.ReLU:
+						neurons[i + 1][j] = Activation.ReLU(sum);
+						break;
 					default:
 						neurons[i + 1][j] = sum;
 						break;
 				}
 			}
-			//Softmax is done in parallel
 			if (activation_per_layer[i + 1] == ActivationType.SOFTMAX)
-			{
 				neurons[i + 1] = Activation.Softmax(neurons[i + 1]);
-				Debug.Log("SOFTMAX");
-			}
 		}
 
-		//Return output layer
 		return neurons[neurons.Length - 1];
 	}
 
-	public override void SetNetworkScore(float score)
+	public override float[] GetWeightsData()
 	{
-		network_score = score;
-	}
-
-	public override float GetNetworkScore()
-	{
-		return network_score;
-	}
-
-	public override uint GetWeightsLength()
-	{
-		return weights_length;
-	}
-
-	public override double[] GetWeightsData()
-	{
-		uint Z = 0;
-		double[] result = new double[weights_length];
-
-		//Get Biases
-		for (uint i = 0; i < biases.Length; i++)
+		int Z = 0;
+		float[] result = new float[GetWeightsLength()];
+		for (int i = 0; i < biases.Length; i++)
 		{
-			for (uint j = 0; j < neurons_per_layer[i + 1]; j++)
+			for(int j = 0; j < biases[i].Length; j++)
 			{
 				result[Z] = biases[i][j];
 				Z++;
 			}
 		}
-
-		//Get Synapsis
-		for (uint i = 0; i < synapsis.Length; i++)
+		for (int i = 0; i < synapsis.Length; i++)
 		{
-			for (uint j = 0; j < neurons_per_layer[i + 1]; j++)
+			for (int j = 0; j < synapsis[i].Length; j++)
 			{
-				for (uint k = 0; k < neurons_per_layer[i]; k++)
+				for (int k = 0; k < synapsis[i][j].Length; k++)
 				{
 					result[Z] = synapsis[i][j][k];
 					Z++;
 				}
 			}
 		}
-
 		return result;
 	}
 
-	public override void SetWeightsData(double[] weights_data)
+	public override void SetWeightsData(float[] weights)
 	{
-		//Error Checking
-		Debug.Assert(weights_data.Length == weights_length, "Weights data length does not match the network");
-		
-		uint Z = 0;
-		//Set Biases
-		for (uint i = 0; i < biases.Length; i++)
+		Debug.Assert(GetWeightsLength() == weights.Length, "Weight data does not match the network.");
+
+		int Z = 0;
+		for (int i = 0; i < biases.Length; i++)
 		{
-			for (uint j = 0; j < neurons_per_layer[i + 1]; j++)
+			for(int j = 0; j < biases[i].Length; j++)
 			{
-				biases[i][j] = weights_data[Z];
+				biases[i][j] = weights[Z];
 				Z++;
 			}
 		}
-
-		//Set Synapsis
-		for (uint i = 0; i < synapsis.Length; i++)
+		for (int i = 0; i < synapsis.Length; i++)
 		{
-			for (uint j = 0; j < neurons_per_layer[i + 1]; j++)
+			for (int j = 0; j < synapsis[i].Length; j++)
 			{
-				for (uint k = 0; k < neurons_per_layer[i]; k++)
+				for (int k = 0; k < synapsis[i][j].Length; k++)
 				{
-					synapsis[i][j][k] = weights_data[Z];
+					synapsis[i][j][k] = weights[Z];
 					Z++;
 				}
 			}

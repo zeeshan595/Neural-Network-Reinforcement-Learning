@@ -1,12 +1,11 @@
 abstract public class BaseNetwork
 {
-    abstract public double[] Compute(double[] inputs);
+    abstract public float[] Compute(float[] inputs);
 
-    abstract public void SetNetworkScore(float score);
+    abstract public int GetWeightsLength();
+    abstract public float[] GetWeightsData();
+    abstract public void SetWeightsData(float[] weights);
 
-	abstract public float GetNetworkScore();
-
-    abstract public uint GetWeightsLength();
-    abstract public double[] GetWeightsData();
-    abstract public void SetWeightsData(double[] weights_data);
+    abstract public float GetNetworkScore();
+    abstract public void SetNetworkScore(float s);
 }
