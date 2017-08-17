@@ -71,8 +71,8 @@ GameObject:
   - component: {fileID: 4511256458324268}
   - component: {fileID: 114718407326817710}
   - component: {fileID: 114508486526936398}
-  - component: {fileID: 114490580749169134}
-  - component: {fileID: 114282638578619646}
+  - component: {fileID: 114085586728641636}
+  - component: {fileID: 114105965144644326}
   m_Layer: 8
   m_Name: Car
   m_TagString: Untagged
@@ -261,7 +261,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1950852738381772}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -0.46}
   m_LocalScale: {x: 1.25, y: 1, z: 3}
   m_Children:
   - {fileID: 4951383845126852}
@@ -315,14 +315,14 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1116627491211584}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: -0.38268343, z: 0, w: 0.92387956}
+  m_LocalPosition: {x: 1.23, y: -0.381, z: -3.47}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 4333926132521516}
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -45, z: 0}
 --- !u!4 &4645555772525246
 Transform:
   m_ObjectHideFlags: 1
@@ -641,19 +641,7 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &114282638578619646
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1116627491211584}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e20340ff283644aaa804d0ab4dfb9785, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  compute_shader: {fileID: 7200000, guid: 92ba8f5cdcada48788f75d923c10a7db, type: 3}
---- !u!114 &114490580749169134
+--- !u!114 &114085586728641636
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
@@ -666,6 +654,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   body: {fileID: 54106615401962714}
   car_score: 0
+--- !u!114 &114105965144644326
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1116627491211584}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e20340ff283644aaa804d0ab4dfb9785, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &114508486526936398
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -695,11 +694,11 @@ MonoBehaviour:
   front_right: {fileID: 146762351127226006}
   rear_left: {fileID: 146790192283267996}
   rear_right: {fileID: 146463894589860616}
-  acceleration: 500
-  max_speed: 500
+  acceleration: 5000
+  max_speed: 1000
   brake_force: 10000
   drive_type: 0
-  anti_roll_force: 100000
+  anti_roll_force: 10000
   wheels_offset: 0.5
   resistance: 10
 --- !u!146 &146392553637105904

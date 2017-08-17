@@ -4,6 +4,7 @@ using System.IO;
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class Experiment : MonoBehaviour
 {
@@ -100,6 +101,11 @@ public class Experiment : MonoBehaviour
 			write.Close();
 			log = "Weights stored in 'Weights.txt'";
 		}
+	}
+
+	public void BackButton()
+	{
+		SceneManager.LoadScene(0);
 	}
 
 	private void Update()
