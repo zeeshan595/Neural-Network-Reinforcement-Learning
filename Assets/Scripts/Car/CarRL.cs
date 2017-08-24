@@ -187,23 +187,21 @@ public class CarRL : MonoBehaviour
 
     private int[] CreateMemoryBatch()
     {
-        System.Random rnd = new System.Random();
+        System.Random random = new System.Random();
+
+        int[] shuffle = ShuffleArray(memory_index);
+
         int batch_size = max_batch_size;
         if (memory_index <= max_batch_size)
-        {
             batch_size = memory_index;
-        }
+
         int[] batch = new int[batch_size];
-        int batch_index = 0;
-        while (batch_index < batch_size)
+        int batch_index = random.Next(0, memory_index - batch_size + 1);
+        for (int i = batch_index; i < batch_size; i++)
         {
-            int random_index = rnd.Next(0, memory_index);
-            if (Array.IndexOf(batch, random_index) == -1)
-            {
-                batch[batch_index] = random_index;
-                batch_index++;
-            }
+            batch[i] = shuffle[i];
         }
+
         return batch;
     }
 
@@ -241,6 +239,22 @@ public class CarRL : MonoBehaviour
     }
 
     /* ================ MATH FUNCTIONS ================ */
+
+    private int[] ShuffleArray(int array_length)
+    {
+        System.Random random = new System.Random();
+        int[] shuffle = new int[array_length];
+        for (int i = 0; i < shuffle.Length; i++)
+            shuffle[i] = i;
+        for (int i = 0; i < shuffle.Length; i++)
+        {
+            int r = random.Next(0, shuffle.Length);
+            int temp = shuffle[r];
+            shuffle[i] = shuffle[r];
+            shuffle[r] = temp;
+        }
+        return shuffle;
+    }
 
     private float[] MultiplyArray(float v1, float[] v2)
     {

@@ -25,14 +25,6 @@ public class CarScoreManager : MonoBehaviour
 		{
 			//Give the car a score besed on its local Z velocity and distance from the walls.
 			car_score += body.gameObject.transform.InverseTransformDirection(body.velocity).z * Time.deltaTime;
-			
-			float[] rays = car_camera.GetRays();
-			
-			for (int i = 0; i < rays.Length; i++)
-			{
-				if (rays[i] < 1.3f)
-					car_score = -100;
-			}
 
 			if (car_ai)
 				car_ai.GetNetwork().SetNetworkScore(car_score);
