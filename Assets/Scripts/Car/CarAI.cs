@@ -38,4 +38,9 @@ public class CarAI : MonoBehaviour
 	{
 		return network;
 	}
+
+	public void SetNetwork(BaseNetwork network)
+	{
+		this.network = network;
+	}
 }

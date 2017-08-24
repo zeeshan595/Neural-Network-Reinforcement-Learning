@@ -123,6 +123,17 @@ public class Experiment : MonoBehaviour
 		if (session_timer > 0)
 		{
 			session_timer -= Time.deltaTime;
+			if (session_timer < session_length - 3.0f)
+			{
+				int done = 0;
+				for (int i = 0; i < car_score_manager.Length; i++)
+				{
+					if (car_body[i].velocity.magnitude < 1.0f)
+						done++;
+				}
+				if (done == car_score_manager.Length)
+					session_timer = 0;
+			}
 		}
 		if (output_log != null)
 		{
@@ -229,7 +240,8 @@ public class Experiment : MonoBehaviour
 			car_body[i]				= current_cars[i].transform.GetChild(0).gameObject.GetComponent<Rigidbody>();
 
 			car_intelligence[i].Start();
-			car_networks[i] 		= car_intelligence[i].GetNetwork();
+			car_networks[i] 		= ObjectCopier.Clone<BaseNetwork>(car_intelligence[i].GetNetwork());
+			car_networks[i].RandomizeWeights(i);
 		}
 		thread_wait.Set();
 	}

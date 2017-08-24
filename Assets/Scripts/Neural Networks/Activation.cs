@@ -39,6 +39,14 @@ public class Activation
 			return x;
 	}
 
+	public static float ReLUDerivative(float x)
+	{
+		if (x < 0)
+			return 0;
+		else
+			return 1;
+	}
+
 	public static float[] Softmax(float[] x)
 	{
 		//Get max value
