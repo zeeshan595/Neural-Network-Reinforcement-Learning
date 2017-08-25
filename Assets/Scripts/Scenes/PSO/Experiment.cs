@@ -266,7 +266,7 @@ public class Experiment : MonoBehaviour
 			TextWriter write = new StreamWriter("Weights.txt");
 			for (int i = 0; i < best_weights.Length; i++)
 			{
-				write.Write(best_weights + ",");
+				write.Write(best_weights[i] + ",");
 			}
 			write.Close();
 			log.Add("Weights stored in 'Weights.txt'");
