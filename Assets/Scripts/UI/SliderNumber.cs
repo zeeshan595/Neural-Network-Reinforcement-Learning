@@ -16,4 +16,9 @@ public class SliderNumber : MonoBehaviour
 	{
 		text_ui.text = Mathf.RoundToInt(x).ToString();
 	}
+
+	public void ChangeNumberf(float x)
+	{
+		text_ui.text = System.Math.Round(x, 4).ToString();
+	}
 }

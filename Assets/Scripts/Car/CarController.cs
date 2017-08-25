@@ -67,7 +67,7 @@ public class CarController : MonoBehaviour
 		rear_left.brakeTorque	= 0.0f;
 		rear_right.brakeTorque	= 0.0f;
 
-		if (body.velocity.magnitude < max_speed)
+		if (body.velocity.magnitude < max_speed && gas != 0)
 		{
 			if (drive_type == DriveType.FRONT_WHEEL || drive_type == DriveType.FOUR_WHEEL)
 			{

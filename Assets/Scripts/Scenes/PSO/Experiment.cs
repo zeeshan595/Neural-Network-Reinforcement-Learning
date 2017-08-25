@@ -28,7 +28,7 @@ public class Experiment : MonoBehaviour
 	private int					current_epoch				= 0;
 	private float				best_score					= float.MinValue;
 	private float[]				best_weights;
-	private string				log							= "";
+	private List<string>		log							= new List<string>();
 	private Techniques			training_technique			= Techniques.PSO;
 
 	//Car
@@ -60,7 +60,7 @@ public class Experiment : MonoBehaviour
 
 	public void StopTraining()
 	{
-		log = "Waiting for session to finish...";
+		log.Add("Waiting for session to finish...");
 		signal_session_stop 	= true;
 		thread_session_wait.Set();
 	}
@@ -85,28 +85,29 @@ public class Experiment : MonoBehaviour
 		Time.timeScale = s;
 	}
 
-	public void SaveWeights()
-	{
-		if (best_weights == null)
-		{
-			log = "Please wait till atleast 1 epoch is complete.";
-		}
-		else
-		{
-			TextWriter write = new StreamWriter("Weights.txt");
-			for (int i = 0; i < best_weights.Length; i++)
-			{
-				write.WriteLine(best_weights);
-			}
-			write.Close();
-			log = "Weights stored in 'Weights.txt'";
-		}
-	}
-
 	public void BackButton()
 	{
 		SceneManager.LoadScene(0);
 	}
+
+	private void Start()
+    {
+        log = new List<string>();
+        StartCoroutine(LogDestroy());
+    }
+
+    private System.Collections.IEnumerator LogDestroy()
+    {
+        if (log.Count > 0)
+        {
+            log.RemoveAt(0);
+        }
+        
+        if (log.Count < 5)
+            yield return new WaitForSeconds(5.0f);
+
+        StartCoroutine(LogDestroy());
+    }
 
 	private void Update()
 	{
@@ -137,11 +138,17 @@ public class Experiment : MonoBehaviour
 		}
 		if (output_log != null)
 		{
+			string full_log = "";
+			for (int i = 0; i < log.Count; i++)
+			{
+				full_log += ">>" + log[i] + "\n";
+			}
+
 			output_log.text = 	"Technique: " + training_technique + "\n" +
 								"Epoch: " + current_epoch + "\n" +
 								"Session Time: " + session_timer + "\n" + 
 								"Best Score: " + best_score + "\n" +
-								log;
+								full_log;
 		}
 	}
 
@@ -161,13 +168,13 @@ public class Experiment : MonoBehaviour
 				training = new GA(car_networks);
 				break;
 			default:
-				log = "ERROR: Unkown training technique...";
+				log.Add("ERROR: Unkown training technique...");
 				return;
 		}
 
 		while (!signal_session_stop)
 		{
-			log = "Reseting Cars";
+			log.Add("Reseting Cars");
 			//Update car positions
 			functions_queued.Add(() => {
 				for (int i = 0; i < current_cars.Length; i++)
@@ -182,7 +189,7 @@ public class Experiment : MonoBehaviour
 			});
 			thread_wait.WaitOne();
 			thread_wait.Reset();
-			log = "Updating Weights";
+			log.Add("Updating Weights");
 			//Update car weights & biases
 			training.UpdateWeights();
 			//Start session to get car score
@@ -192,7 +199,7 @@ public class Experiment : MonoBehaviour
 				car_score_manager[i].activate_car 	= true;
 				car_intelligence[i].GetNetwork().SetWeightsData(car_networks[i].GetWeightsData());
 			}
-			log = "Session Started";
+			log.Add("Session Started");
 			thread_session_wait.Reset();
 			session_timer = session_length;
 			thread_session_wait.WaitOne();
@@ -205,7 +212,7 @@ public class Experiment : MonoBehaviour
 					car_score_manager[i].activate_car 	= false;
 					car_networks[i].SetNetworkScore(car_intelligence[i].GetNetwork().GetNetworkScore());
 				}
-				log = "Comparing Results";
+				log.Add("Comparing Results");
 				//Compare all cars scores
 				training.ComputeEpoch();
 				//Update log info
@@ -244,5 +251,25 @@ public class Experiment : MonoBehaviour
 			car_networks[i].RandomizeWeights(i);
 		}
 		thread_wait.Set();
+	}
+
+	/* ================ SAVE/LOAD WEIGHTS ================ */
+
+	public void SaveWeights()
+	{
+		if (best_weights == null)
+		{
+			log.Add("Please wait till atleast 1 epoch is complete.");
+		}
+		else
+		{
+			TextWriter write = new StreamWriter("Weights.txt");
+			for (int i = 0; i < best_weights.Length; i++)
+			{
+				write.Write(best_weights + ",");
+			}
+			write.Close();
+			log.Add("Weights stored in 'Weights.txt'");
+		}
 	}
 }

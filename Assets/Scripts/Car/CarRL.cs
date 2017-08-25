@@ -1,17 +1,25 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using System;
+using System.IO;
+using UnityEngine.UI;
 using UnityEngine;
 
 public class CarRL : MonoBehaviour
 {
     public GameObject car_spawner;
+    public Text text_log;
+    public float current_reward;
     public int max_batch_size = 32;
     public int memory_size = 200;
     public float epsilon_increment = 0.01f;
     public int learn_wait = 200;
     public int replace_target_iteration = 100;
     public float reward_decay = 0.9f;
-    public bool is_activated = true;
+    public float reaction_time = 0.1f;
+
+    [System.NonSerialized]
+    public bool is_activated = false;
 
     private struct MemoryStructure
     {
@@ -23,6 +31,7 @@ public class CarRL : MonoBehaviour
 
     private int[][] actions = new int[][]{
         new int[]{ 0, 0 }, //No action
+        new int[]{-1, 0 }, //Break
         new int[]{ 0,-1 }, //Turn Left
         new int[]{ 0, 1 }, //Turn Right
         new int[]{ 1, 0 }, //Accelerate
@@ -39,18 +48,27 @@ public class CarRL : MonoBehaviour
     private     float               epsilon;
     private     CarCamera           car_camera;
     private     CarController       car_controller;
-    private     CarScoreManager     car_score;
     private     Rigidbody           car_body;
     private     int                 current_step;
     private     int                 learn_step;
-    private     int                 reset_step;
+    private     int                 reset_step; 
+    private     List<string>        log;
+    private     bool                load_weights;
 
-    private void Start()
+    public void StopTraining()
+    {
+        is_activated = false;
+    }
+
+    public void StartTraining()
     {
         //Setup
         action_index = 0;
         current_step = 0;
         learn_step = 0;
+        is_activated = true;
+        load_weights = false;
+        log = new List<string>();
 
         //Setup memory
         memory_index = 0;
@@ -79,21 +97,57 @@ public class CarRL : MonoBehaviour
         //Setup car components
         car_camera = GetComponent<CarCamera>();
         car_controller = GetComponent<CarController>();
-        car_score = GetComponent<CarScoreManager>();
         car_body = gameObject.transform.GetChild(0).gameObject.GetComponent<Rigidbody>();
-        car_score.activate_car = true;
+
+        //Reset Car
+        car_body.transform.position = car_spawner.transform.position;
+        car_body.transform.rotation = car_spawner.transform.rotation;
+        car_body.velocity = Vector3.zero;
+        car_body.angularVelocity = Vector3.zero;
+        action_index = 0;
+        reset_step = current_step;
 
         //Start loop
         StartCoroutine(LearnStep());
+        log.Add("Training Started");
+    }
+
+    private void Start()
+    {
+        log = new List<string>();
+        StartCoroutine(LogDestroy());
+    }
+
+    private System.Collections.IEnumerator LogDestroy()
+    {
+        if (log.Count > 0)
+        {
+            log.RemoveAt(0);
+        }
+        
+        if (log.Count < 5)
+            yield return new WaitForSeconds(10.0f);
+
+        StartCoroutine(LogDestroy());
     }
 
     private void Update()
     {
-        car_controller.Accelerate(actions[action_index][0]);
-        car_controller.Steer(actions[action_index][1]);
+        if (is_activated)
+        {
+            car_controller.Accelerate(actions[action_index][0]);
+            car_controller.Steer(actions[action_index][1]);
+        }
+
+        string full_log = "";
+        for (int i = 0; i < log.Count; i++)
+        {
+            full_log += ">>" + log[i] + "\n";
+        }
+        text_log.text = full_log;
     }
 
-    private IEnumerator LearnStep()
+    private System.Collections.IEnumerator LearnStep()
     {
         //Observe
         float[] current_state = car_camera.GetRays();
@@ -103,10 +157,11 @@ public class CarRL : MonoBehaviour
 
         //Take action
         action_index = action;
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(reaction_time);
 
         //Get reward
-        float current_reward = car_score.car_score;
+        float current_reward = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
+        this.current_reward = current_reward;
 
         //Get next state
         float[] next_state = car_camera.GetRays();
@@ -130,15 +185,20 @@ public class CarRL : MonoBehaviour
             car_body.transform.rotation = car_spawner.transform.rotation;
             car_body.velocity = Vector3.zero;
             car_body.angularVelocity = Vector3.zero;
-            car_score.ResetScore();
             action_index = 0;
             reset_step = current_step;
+        }
+
+        if (load_weights)
+        {
+            LoadWeights();
+            load_weights = false;
         }
 
         if (is_activated)
             StartCoroutine(LearnStep());
         else
-            Debug.Log("STOP");
+            log.Add("Training Stopped");
     }
 
     private void Learn()
@@ -147,7 +207,7 @@ public class CarRL : MonoBehaviour
         if (learn_step % replace_target_iteration == 0)
         {
             network_target.SetWeightsData(network_eval.GetWeightsData());
-            Debug.Log("Replacing `target net` with `eval net`");
+            log.Add("Replacing `target net` with `eval net`");
         }
 
         //Get batch from memory
@@ -295,4 +355,47 @@ public class CarRL : MonoBehaviour
         }
         return rtn;
     }
+
+    /* ================ SAVE/LOAD WEIGHTS ================ */
+
+    public void SaveWeights()
+	{
+        float[] best_weights = network_eval.GetWeightsData();
+        TextWriter write = new StreamWriter("Weights.txt");
+        for (int i = 0; i < best_weights.Length; i++)
+        {
+            write.WriteLine(best_weights[i] + ",");
+        }
+        write.Close();
+        log.Add("Weights stored in 'Weights.txt'");
+	}
+
+    public void SetLoadWeights()
+    {
+        load_weights = true;
+    }
+
+    private void LoadWeights()
+	{
+        TextReader read = new StreamReader("Weights.txt");
+        string[] str_weights = read.ReadToEnd().Split(',');
+        read.Close();
+        if (str_weights.Length - 1 != network_target.GetWeightsLength())
+        {
+            log.Add("'Weights.txt' file does not contain matching network weights");
+            return;
+        }
+        float[] weights = new float[str_weights.Length - 1];
+        for(int i = 0; i < weights.Length; i++)
+        {
+            if (!float.TryParse(str_weights[i], out weights[i]))
+            {
+                log.Add("Could not convert weight " + i + "(" + str_weights[i] + ") into a float");
+                return;
+            }
+        }
+        network_eval.SetWeightsData(weights);
+        network_target.SetWeightsData(weights);
+        log.Add("Weights successfully loaded from 'Weights.txt'");
+	}
 };
