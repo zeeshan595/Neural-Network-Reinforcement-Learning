@@ -12,7 +12,7 @@ public class ThirdPersonCamera : MonoBehaviour {
     {
         //Position
         Vector3 target_pos = target.transform.position + target.transform.TransformDirection(offset);
-        transform.position = Vector3.Lerp(transform.position, target_pos, Time.deltaTime * 2.0f);
+        transform.position = target_pos;
 
         //Rotation
         Vector3 look_offset_vec = target.transform.TransformDirection(Vector3.forward) * look_offset;

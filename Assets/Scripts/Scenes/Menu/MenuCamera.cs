@@ -16,11 +16,8 @@ public class MenuCamera : MonoBehaviour
 
 	private void Update()
 	{
-		transform.position = Vector3.Lerp(
-			transform.position,
-			target.transform.position + offset,
-			Time.deltaTime * 3.0f
-		);
+		Vector3 target_pos = new Vector3(target.transform.position.x, 0, target.transform.position.z);
+		transform.position = target_pos + offset;
 	}
 
 	//=============================

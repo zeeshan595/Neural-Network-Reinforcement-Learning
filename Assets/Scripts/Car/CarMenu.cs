@@ -21,5 +21,10 @@ public class CarMenu : MonoBehaviour
 			body.gameObject.transform.localPosition.y,
 			body.gameObject.transform.localPosition.z
 		);
+		body.gameObject.transform.localRotation = Quaternion.Euler(
+			body.gameObject.transform.localRotation.eulerAngles.x,
+			0,
+			body.gameObject.transform.localRotation.eulerAngles.z
+		);
 	}
 }
