@@ -9,7 +9,6 @@ public class CarRL : MonoBehaviour
 {
     public GameObject car_spawner;
     public Text text_log;
-    public float current_reward;
     public int max_batch_size = 32;
     public int memory_size = 200;
     public float epsilon_increment = 0.01f;
@@ -20,6 +19,8 @@ public class CarRL : MonoBehaviour
 
     [System.NonSerialized]
     public bool is_activated = false;
+    [System.NonSerialized]
+    public float current_reward = 0.0f;
 
     private struct MemoryStructure
     {
@@ -29,6 +30,9 @@ public class CarRL : MonoBehaviour
         public      float       reward;
     };
 
+    private string[] actions_name = new string[]{
+        "No Action", "Break", "Turn Left", "Turn Right", "Gas", "Turn Left & Gas", "Turn Right & Gas"
+    };
     private int[][] actions = new int[][]{
         new int[]{ 0, 0 }, //No action
         new int[]{-1, 0 }, //Break
@@ -54,6 +58,7 @@ public class CarRL : MonoBehaviour
     private     int                 reset_step; 
     private     List<string>        log;
     private     bool                load_weights;
+    private     float[]             last_q_values;
 
     public void StopTraining()
     {
@@ -69,6 +74,7 @@ public class CarRL : MonoBehaviour
         is_activated = true;
         load_weights = false;
         log = new List<string>();
+        last_q_values = new float[actions.Length];
 
         //Setup memory
         memory_index = 0;
@@ -135,19 +141,31 @@ public class CarRL : MonoBehaviour
     {
         if (is_activated)
         {
-            car_controller.Accelerate(actions[action_index][0]);
             if (actions[action_index][0] == -1)
+            {
+                car_controller.Accelerate(0);
                 car_controller.Brake();
+            }
+            else
+            {
+                car_controller.Accelerate(actions[action_index][0]);
+            }
             car_controller.Steer(actions[action_index][1]);
         }
 
         string full_log = "";
+        full_log += "Last Reward Recived: " + current_reward + "\n";
+        full_log += "Actions Q Value: \n";
+        for (int i = 0; i < actions.Length; i++)
+        {
+            full_log += "       " + actions_name[i] + ": " + last_q_values[i] + "\n";
+        }
+        //Log
         for (int i = 0; i < log.Count; i++)
         {
             full_log += ">>" + log[i] + "\n";
         }
-        text_log.text   = "Last Reward Recived: " + current_reward + "\n"
-                        + full_log;
+        text_log.text   = full_log;
     }
 
     private System.Collections.IEnumerator LearnStep()
@@ -288,6 +306,7 @@ public class CarRL : MonoBehaviour
         if (rnd.NextDouble() < epsilon)
         {
             float[] q_values = network_eval.Compute(current_state);
+            last_q_values = q_values;
             int q_index = 0;
             for (int i = 1; i < q_values.Length; i++)
             {

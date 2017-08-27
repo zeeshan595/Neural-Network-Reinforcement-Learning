@@ -61,14 +61,14 @@ public class CarController : MonoBehaviour
 
 	public void Accelerate(float gas)
 	{
-		//Remove all Break Force Before accelerating
-		front_left.brakeTorque	= 0.0f;
-		front_right.brakeTorque	= 0.0f;
-		rear_left.brakeTorque	= 0.0f;
-		rear_right.brakeTorque	= 0.0f;
-
 		if (body.velocity.magnitude < max_speed && gas != 0)
 		{
+			//Remove all Break Force Before accelerating
+			front_left.brakeTorque	= 0.0f;
+			front_right.brakeTorque	= 0.0f;
+			rear_left.brakeTorque	= 0.0f;
+			rear_right.brakeTorque	= 0.0f;
+
 			if (drive_type == DriveType.FRONT_WHEEL || drive_type == DriveType.FOUR_WHEEL)
 			{
 				front_left.motorTorque 	= gas * acceleration * 10.0f;
