@@ -10,10 +10,22 @@ public class MFNN : BaseNetwork
 	private		float				network_score				= float.MinValue;
 
 	/* ==================== BACK PROPAGATION ==================== */
-	private 	float[][]			neuron_gradients;
-	private 	float[][]			biases_delta;
-	private		float[][][]			weights_delta;
+	private 	float[][]			neuron_delta_error;
+	private		float[][][]			synapsis_delta_error;
+	private 	float[][]			biases_delta_error;
 
+	private 	float[][][]			prev_synapsis_delta_error;
+	private 	float[][]			prev_biases_delta_error;
+
+	public int GetInputSize()
+	{
+		return neurons[0].Length;
+	}
+
+	public int GetOutputSize()
+	{
+		return neurons[neurons.Length - 1].Length;
+	}
 
 	public override float GetNetworkScore()
 	{
@@ -43,47 +55,54 @@ public class MFNN : BaseNetwork
 
 		//Setup neurons
 		neurons = new float[neurons_per_layer.Length][];
-		neuron_gradients = new float[neurons.Length][];
+		neuron_delta_error = new float[neurons.Length][];
 		for (int i = 0; i < neurons.Length; i++)
 		{
 			Debug.Assert(neurons_per_layer[i] > 0, "There must be atleast 1 node per layer.");
 			neurons[i] = new float[neurons_per_layer[i]];
-			neuron_gradients[i] = new float[neurons_per_layer[i]];
+			neuron_delta_error[i] = new float[neurons_per_layer[i]];
 			for(int j = 0; j < neurons[i].Length; j++)
 			{
 				neurons[i][j] = Random.Range(-1.0f, 1.0f);
-				neuron_gradients[i][j] = Random.Range(-1.0f, 1.0f);
+				neuron_delta_error[i][j] = Random.Range(-1.0f, 1.0f);
 			}
 		}
 		//Setup biases
 		biases = new float[neurons_per_layer.Length - 1][];
-		biases_delta = new float[neurons_per_layer.Length - 1][];
+		biases_delta_error = new float[neurons_per_layer.Length - 1][];
+		prev_biases_delta_error = new float[neurons_per_layer.Length - 1][];
 		for (int i = 0; i < biases.Length; i++)
 		{
 			biases[i] = new float[neurons_per_layer[i + 1]];
-			biases_delta[i] = new float[neurons_per_layer[i + 1]];
+			biases_delta_error[i] = new float[neurons_per_layer[i + 1]];
+			prev_biases_delta_error[i] = new float[neurons_per_layer[i + 1]];
 			for(int j = 0; j < biases[i].Length; j++)
 			{
 				biases[i][j] = Random.Range(-1.0f, 1.0f);
-				biases_delta[i][j] = Random.Range(-1.0f, 1.0f);
+				biases_delta_error[i][j] = Random.Range(-1.0f, 1.0f);
+				prev_biases_delta_error[i][j] = Random.Range(-1.0f, 1.0f);
 				weights_length++;
 			}
 		}
 		//Setup synapsis
 		synapsis = new float[neurons_per_layer.Length - 1][][];
-		weights_delta = new float[neurons_per_layer.Length - 1][][];
+		synapsis_delta_error = new float[neurons_per_layer.Length - 1][][];
+		prev_synapsis_delta_error = new float[neurons_per_layer.Length - 1][][];
 		for (int i = 0; i < synapsis.Length; i++)
 		{
 			synapsis[i] = new float[neurons_per_layer[i + 1]][];
-			weights_delta[i] = new float[neurons_per_layer[i + 1]][];
+			synapsis_delta_error[i] = new float[neurons_per_layer[i + 1]][];
+			prev_synapsis_delta_error[i] = new float[neurons_per_layer[i + 1]][];
 			for (int j = 0; j < synapsis[i].Length; j++)
 			{
 				synapsis[i][j] = new float[neurons_per_layer[i]];
-				weights_delta[i][j] = new float[neurons_per_layer[i]];
+				synapsis_delta_error[i][j] = new float[neurons_per_layer[i]];
+				prev_synapsis_delta_error[i][j] = new float[neurons_per_layer[i]];
 				for (int k = 0; k < synapsis[i][j].Length; k++)
 				{
 					synapsis[i][j][k] = Random.Range(-1.0f, 1.0f);
-					weights_delta[i][j][k] = Random.Range(-1.0f, 1.0f);
+					synapsis_delta_error[i][j][k] = Random.Range(-1.0f, 1.0f);
+					prev_synapsis_delta_error[i][j][k] = Random.Range(-1.0f, 1.0f);
 					weights_length++;
 				}
 			}
@@ -207,76 +226,90 @@ public class MFNN : BaseNetwork
 
 	public void UpdateWeights(float[] output_error, float learning_rate, float weight_decay, float momentum)
 	{
+		//Error checking
 		Debug.Assert(output_error.Length == neurons[neurons.Length - 1].Length);
 	
-		//Compute gradiant for each neuron from output layer to input layer.
-		for (int i = neurons.Length - 1; i > 0; i--)
+		//Get neurons derivative error
+		for (int i = neurons.Length - 1; i >= 0; i--)
 		{
-			for (int j = 0; j < neurons[i].Length; j++)
+			//If output layer
+			if (i + 1 == neurons.Length)
 			{
-				//Apply the derivative of the activation function
-				float derivative   = Activation.ReLUDerivative(neurons[i][j]);
-				float sum          = 0.0f;
-				if (i == neurons.Length - 1) //If Output layer
+				neuron_delta_error[i] = output_error;
+			}
+			else
+			{
+				for (int k = 0; k < neurons[i].Length; k++)
 				{
-					//If it is the output layer the derivative error is desired - actual output
-					sum = output_error[j];
-				}
-				else //Else other layer
-				{
-					//Go through each synapse going out from this neuron
-					for (int k = 0; k < neurons[i + 1].Length; k++)
+					float sum = 0.0f;
+					for (int j = 0; j < neurons[i + 1].Length; j++)
 					{
-						//Multiply the synapse weight by the node gradient to which this synapse is going to.
-						float x = neuron_gradients[i + 1][k] * synapsis[i][k][j];
-						//The resulting value is added to a sum
-						sum += x;
+						//Get activation derivative error
+						float A = GetActivationDerivative(neurons[i + 1][j], activation_per_layer[i + 1]);
+						//Get derivative error per synapse
+						sum += A * synapsis[i][j][k] * neuron_delta_error[i + 1][j];
 					}
+					//Sum derivative error to compute neuron's derivative error
+					neuron_delta_error[i][k] = sum;
 				}
-				//The gradient of the node is then derivative multiplied by the sum.
-				neuron_gradients[i][j] = derivative * sum;
 			}
 		}
 
-		//Update Weights for each synapse
+		//Get synapsis & bias derivative error
+		//and update synapsis & biases
 		for (int i = 0; i < neurons.Length - 1; i++)
 		{
 			for (int j = 0; j < neurons[i + 1].Length; j++)
 			{
+				//Get activation derivative error
+				float A = GetActivationDerivative(neurons[i + 1][j], activation_per_layer[i + 1]);
+
+				//Synapsis
 				for (int k = 0; k < neurons[i].Length; k++)
 				{
-					//get delta by multiply learning rate (free parameter) with synapse gradient
-					//and then multiplying that by neuron value.
-					float delta		= learning_rate * neurons[i + 1][j] * neurons[i][k]; 
-					//Add the delta to the current synapse weight
-					float weight	= synapsis[i][j][k];
-					weight		   += delta;
-					//add momentum multiplied by previous delta to the current weight.
-					weight		   += momentum * weights_delta[i][j][k];
-					//multiply weight decay by current weight and then subtract the result from
-					//current weight
-					weight		   -= weight_decay * weight;
-					//Update all values
-					synapsis[i][j][k] = weight;
-					weights_delta[i][j][k] = delta;
+					//Compute synapsis derivative error
+					synapsis_delta_error[i][j][k] = neuron_delta_error[i + 1][j] * A * neurons[i][k];
+					//Update synapsis
+					synapsis[i][j][k] += learning_rate * synapsis_delta_error[i][j][k];
+					//Apply Momentum
+					synapsis[i][j][k] += momentum * prev_synapsis_delta_error[i][j][k];
+					//Apply decay effect
+					synapsis[i][j][k] -= weight_decay * synapsis[i][j][k];
+					
+					//Store previous synapse derivative error
+					prev_synapsis_delta_error[i][j][k] = synapsis_delta_error[i][j][k];
 				}
+
+				//Compute bias derivative error
+				biases_delta_error[i][j] = neuron_delta_error[i + 1][j] * A * 1.0f;
+				//Update bias
+				biases[i][j] += learning_rate * biases_delta_error[i][j];
+				//Apply Momentum
+				biases[i][j] += momentum * prev_biases_delta_error[i][j];
+				//Apply decay effect
+				biases[i][j] -= weight_decay * biases[i][j];
+
+				//Store previous bias derivative error
+				prev_biases_delta_error[i][j] = biases_delta_error[i][j];
 			}
 		}
+	}
 
-		//Update Biases
-		for (int i = 1; i < neurons.Length - 1; i++)
+	private float GetActivationDerivative(float x, ActivationType type)
+	{
+		switch(type)
 		{
-			for (int j = 0; j < neurons[i + 1].Length; j++)
-			{
-				float delta    	= learning_rate * neuron_gradients[i + 1][j] * 1.0f;
-				float bias     	= biases[i][j];
-				bias           += delta;
-				bias           += momentum * biases_delta[i][j];
-				bias           -= (weight_decay * bias);
-
-				biases[i][j] 		= bias;
-				biases_delta[i][j]	= delta;
-			}
+			case ActivationType.LOGISTIC_SIGMOID:
+				return Activation.LogisticSigmoidD(x);
+			case ActivationType.HYPERBOLIC_TANGENT:
+				return Activation.HyperbolicTangentD(x);
+			case ActivationType.HEAVISIDESTEP:
+				Debug.LogError("Impossible to compute derivative of heavisidestep.");
+				return x;
+			case ActivationType.ReLU:
+				return Activation.ReLUD(x);
+			default:
+				return x;
 		}
 	}
 }

@@ -39,14 +39,6 @@ public class Activation
 			return x;
 	}
 
-	public static float ReLUDerivative(float x)
-	{
-		if (x < 0)
-			return 0;
-		else
-			return 1;
-	}
-
 	public static float[] Softmax(float[] x)
 	{
 		//Get max value
@@ -71,5 +63,26 @@ public class Activation
 			result[i] = Mathf.Exp(x[i] - max) / scale;
 		}
 		return result;
+	}
+
+
+	/* ==================== DERIVATIVES ==================== */
+
+	public static float LogisticSigmoidD(float x)
+	{
+		return (1 - x) * x;
+	}
+
+	public static float HyperbolicTangentD(float x)
+	{
+		return (1 - x) * (1 + x);
+	}
+
+	public static float ReLUD(float x)
+	{
+		if (x < 0)
+			return 0;
+		else
+			return 1;
 	}
 }

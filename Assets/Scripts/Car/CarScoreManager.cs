@@ -10,12 +10,10 @@ public class CarScoreManager : MonoBehaviour
 	public		Rigidbody		body				= null;
 	public 		float			car_score			= 0.0f;
 
-	private 	CarCamera		car_camera			= null;
 	private 	CarAI			car_ai				= null;
 
 	private void Start()
 	{
-		car_camera = GetComponent<CarCamera>();
 		car_ai = GetComponent<CarAI>();
 	}
 

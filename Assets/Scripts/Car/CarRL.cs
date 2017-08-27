@@ -136,6 +136,8 @@ public class CarRL : MonoBehaviour
         if (is_activated)
         {
             car_controller.Accelerate(actions[action_index][0]);
+            if (actions[action_index][0] == -1)
+                car_controller.Brake();
             car_controller.Steer(actions[action_index][1]);
         }
 
@@ -144,7 +146,8 @@ public class CarRL : MonoBehaviour
         {
             full_log += ">>" + log[i] + "\n";
         }
-        text_log.text = full_log;
+        text_log.text   = "Last Reward Recived: " + current_reward + "\n"
+                        + full_log;
     }
 
     private System.Collections.IEnumerator LearnStep()
