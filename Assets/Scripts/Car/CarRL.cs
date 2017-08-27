@@ -121,6 +121,7 @@ public class CarRL : MonoBehaviour
     private void Start()
     {
         log = new List<string>();
+        last_q_values = new float[actions.Length];
         StartCoroutine(LogDestroy());
     }
 

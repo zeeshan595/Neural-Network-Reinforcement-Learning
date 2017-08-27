@@ -20,12 +20,12 @@ public class ObserverCamera : MonoBehaviour
         
         float mouse_x = (Input.mousePosition.x / Screen.width) - 0.5f;
         float mouse_y = (Input.mousePosition.y / Screen.height) - 0.5f;
-        new_position.x = mouse_x * 30.0f;
-        new_position.z = mouse_y * 30.0f;
+        new_position.x = mouse_x * 50.0f;
+        new_position.z = mouse_y * 50.0f;
 
 
-        new_position.x = Mathf.Clamp(new_position.x, -30.0f, 30.0f);
-        new_position.z = Mathf.Clamp(new_position.z, -30.0f, 30.0f);
+        new_position.x = Mathf.Clamp(new_position.x, -50.0f, 50.0f);
+        new_position.z = Mathf.Clamp(new_position.z, -50.0f, 50.0f);
         
         transform.position = Vector3.Lerp(transform.position, new_position, Time.deltaTime * 2.0f);
     }
