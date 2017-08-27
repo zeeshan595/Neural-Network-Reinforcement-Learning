@@ -163,8 +163,8 @@ public class CarRL : MonoBehaviour
         yield return new WaitForSeconds(reaction_time);
 
         //Get reward
-        float current_reward = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
-        this.current_reward = current_reward;
+        float velocity = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
+        current_reward = velocity * 10.0f;
 
         //Get next state
         float[] next_state = car_camera.GetRays();
@@ -190,6 +190,7 @@ public class CarRL : MonoBehaviour
             car_body.angularVelocity = Vector3.zero;
             action_index = 0;
             reset_step = current_step;
+            current_reward = 0;
         }
 
         if (load_weights)
