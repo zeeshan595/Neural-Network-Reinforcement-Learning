@@ -85,16 +85,17 @@ public class CarRL : MonoBehaviour
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.LOGISTIC_SIGMOID,
-                ActivationType.LOGISTIC_SIGMOID
+                ActivationType.ReLU,
+                ActivationType.ReLU
         });
         network_target = new MFNN(
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.LOGISTIC_SIGMOID,
-                ActivationType.LOGISTIC_SIGMOID
+                ActivationType.ReLU,
+                ActivationType.ReLU
         });
+        network_target.SetWeightsData(network_eval.GetWeightsData());
 
         //Setup epsilon
         max_epsilon = 0.9f;
@@ -156,6 +157,7 @@ public class CarRL : MonoBehaviour
 
         string full_log = "";
         full_log += "Last Reward Recived: " + current_reward + "\n";
+        full_log += "Epsilon: " + epsilon + "\n";
         full_log += "Actions Q Value: \n";
         for (int i = 0; i < actions.Length; i++)
         {
@@ -201,7 +203,7 @@ public class CarRL : MonoBehaviour
         current_step++;
 
         //Reset trapped car
-        if (car_body.velocity.magnitude < 1.0f && current_step - reset_step > 100)
+        if (car_body.velocity.magnitude < 0.5f && current_step - reset_step > 100)
         {
             car_body.transform.position = car_spawner.transform.position;
             car_body.transform.rotation = car_spawner.transform.rotation;
@@ -235,6 +237,13 @@ public class CarRL : MonoBehaviour
 
         //Get batch from memory
         int[] batch_index = CreateMemoryBatch();
+        if (batch_index.Length == 0)
+            return;
+
+        float[] errors_mean = new float[actions.Length];
+        for (int j = 0; j < errors_mean.Length; j++)
+            errors_mean[j] = 0;
+
         //Compute network error
         for (int i = 0; i < batch_index.Length; i++)
         {
@@ -242,22 +251,28 @@ public class CarRL : MonoBehaviour
             float[] q_eval = network_eval.Compute(car_memory[batch_index[i]].current_state);
             float[] q_target = network_target.Compute(car_memory[batch_index[i]].next_state);
 
-            //Compute reward per action
-            float[] reward = new float[actions.Length];
-            int max_index = 0;
-            for (int j = 1; j < actions.Length; j++)
-            {
-                if (q_eval[j] > q_eval[max_index])
-                    max_index = j;
-            }
-            reward[max_index] = car_memory[batch_index[i]].reward;
-            
+            //Compute reward
+            float reward = car_memory[batch_index[i]].reward;            
 
-            q_target = AddArray(reward, MultiplyArray(reward_decay, q_target));
-            q_target = NormalizeArray(q_target);
+            //Compute error
+            int max_q_target = 0;
+            for (int j = 1; j < q_target.Length; j++)
+            {
+                if (q_target[max_q_target] < q_target[j])
+                    max_q_target = j;
+            }
+            q_target[max_q_target] =  reward + reward_decay * q_target[max_q_target];
+
+            //Add error to errors mean
             float[] error = SubtractArray(q_target, q_eval);
-            network_eval.UpdateWeights(error, 0.01f, 0.00001f, 0.05f);
+            for (int j = 0; j < errors_mean.Length; j++)
+                errors_mean[j] += error[j];
         }
+        for (int j = 0; j < errors_mean.Length; j++)
+            errors_mean[j] = errors_mean[j] / batch_index.Length;
+
+        //Update weights using BP
+        network_eval.UpdateWeights(errors_mean, 0.01f, 0.00001f, 0.05f);
 
         //Update epsilon
         if (epsilon < max_epsilon)
@@ -339,50 +354,12 @@ public class CarRL : MonoBehaviour
         return shuffle;
     }
 
-    private float[] MultiplyArray(float v1, float[] v2)
-    {
-        float[] rtn = v2;
-        for (int i = 0; i < rtn.Length; i++)
-        {
-            rtn[i] *= v1;
-        }
-        return rtn;
-    }
-
-    private float[] AddArray(float[] v1, float[] v2)
-    {
-        float[] rtn = new float[v1.Length];
-        for (int i = 0; i < rtn.Length; i++)
-        {
-            rtn[i] = v1[i] + v2[i];
-        }
-        return rtn;
-    }
-
     private float[] SubtractArray(float[] v1, float[] v2)
     {
         float[] rtn = new float[v1.Length];
         for (int i = 0; i < rtn.Length; i++)
         {
-            rtn[i] = (v1[i] - v2[i]) * (v1[i] - v2[i]);
-        }
-        return rtn;
-    }
-
-    private float[] NormalizeArray(float[] v1)
-    {
-        float[] rtn = new float[v1.Length];
-        float max = 0.0f;
-        for (int i = 0; i < v1.Length; i++)
-        {
-            if (max < v1[i])
-            {
-                max = v1[i];
-            }
-        }
-        for (int i = 0; i < v1.Length; i++)
-        {
-            rtn[i] = v1[i] / max;
+            rtn[i] = v1[i] - v2[i];
         }
         return rtn;
     }
