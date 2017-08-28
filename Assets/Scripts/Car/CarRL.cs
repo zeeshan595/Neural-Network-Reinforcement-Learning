@@ -115,7 +115,7 @@ public class CarRL : MonoBehaviour
         reset_step = current_step;
 
         //Start loop
-        StartCoroutine(LearnStep());
+        StartCoroutine(DQNStep());
         log.Add("Training Started");
     }
 
@@ -171,7 +171,7 @@ public class CarRL : MonoBehaviour
         text_log.text   = full_log;
     }
 
-    private System.Collections.IEnumerator LearnStep()
+    private System.Collections.IEnumerator DQNStep()
     {
         //Observe
         float[] current_state = car_camera.GetRays();
@@ -221,7 +221,7 @@ public class CarRL : MonoBehaviour
         }
 
         if (is_activated)
-            StartCoroutine(LearnStep());
+            StartCoroutine(DQNStep());
         else
             log.Add("Training Stopped");
     }
