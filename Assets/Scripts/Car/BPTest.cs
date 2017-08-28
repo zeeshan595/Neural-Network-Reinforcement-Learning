@@ -12,6 +12,7 @@ public class BPTest : MonoBehaviour
                 ActivationType.LOGISTIC_SIGMOID
             });
 
+        int[] shuffle = ShuffleArray(IrisData.dataset.Length);
         Debug.Log("Initial Error: " + MSR(IrisData.dataset, network));
         
         int input_size = network.GetInputSize();
@@ -20,12 +21,12 @@ public class BPTest : MonoBehaviour
         int r = 0;
         while (r < 100)
         {
-            for (int i = 0; i < IrisData.dataset.Length; i++)
+            for (int i = 0; i < IrisData.dataset.Length - 20; i++)
             {
                 float[] x_values = new float[input_size];
                 float[] t_values = new float[output_size];
-                Array.Copy(IrisData.dataset[i], 0, x_values, 0, input_size);
-                Array.Copy(IrisData.dataset[i], input_size, t_values, 0, output_size);
+                Array.Copy(IrisData.dataset[shuffle[i]], 0, x_values, 0, input_size);
+                Array.Copy(IrisData.dataset[shuffle[i]], input_size, t_values, 0, output_size);
 
                 float[] y_values = network.Compute(x_values);
                 float[] errors = new float[output_size];
@@ -37,6 +38,33 @@ public class BPTest : MonoBehaviour
             }
             Debug.Log("Itr. "+r+" MSR: " + MSR(IrisData.dataset, network));
             r++;
+        }
+
+        Debug.Log("Testing");
+        for (int i = IrisData.dataset.Length - 21; i < IrisData.dataset.Length; i++)
+        {
+            float[] x_values = new float[input_size];
+            float[] t_values = new float[output_size];
+            Array.Copy(IrisData.dataset[shuffle[i]], 0, x_values, 0, input_size);
+            Array.Copy(IrisData.dataset[shuffle[i]], input_size, t_values, 0, output_size);
+            float[] y_values = network.Compute(x_values);
+            int max1 = 0;
+            int max2 = 0;
+            for (int j = 0; j < t_values.Length; j++)
+            {
+                if (t_values[max1] < t_values[j])
+                    max1 = j;
+                if (y_values[max2] < t_values[j])
+                    max2 = j;
+            }
+            if (max1 == max2)
+            {
+                Debug.Log("GOOD");
+            }
+            else
+            {
+                Debug.Log("BAD");
+            }
         }
     }
 
@@ -68,5 +96,21 @@ public class BPTest : MonoBehaviour
         }
 
         return msr;
+    }
+
+    private int[] ShuffleArray(int array_length)
+    {
+        System.Random random = new System.Random();
+        int[] shuffle = new int[array_length];
+        for (int i = 0; i < shuffle.Length; i++)
+            shuffle[i] = i;
+        for (int i = 0; i < shuffle.Length; i++)
+        {
+            int r = random.Next(0, shuffle.Length);
+            int temp = shuffle[r];
+            shuffle[i] = shuffle[r];
+            shuffle[r] = temp;
+        }
+        return shuffle;
     }
 }

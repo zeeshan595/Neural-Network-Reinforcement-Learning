@@ -299,7 +299,7 @@ public class MFNN : BaseNetwork
 	{
 		switch(type)
 		{
-			case ActivationType.SOFTMAX:
+			case ActivationType.SOFTMAX: //Softmax uses the same derivative as logistic sigmoid
 			case ActivationType.LOGISTIC_SIGMOID:
 				return Activation.LogisticSigmoidD(x);
 			case ActivationType.HYPERBOLIC_TANGENT:

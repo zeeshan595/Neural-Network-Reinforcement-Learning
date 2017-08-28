@@ -85,15 +85,15 @@ public class CarRL : MonoBehaviour
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.ReLU,
-                ActivationType.ReLU
+                ActivationType.HYPERBOLIC_TANGENT,
+                ActivationType.HYPERBOLIC_TANGENT
         });
         network_target = new MFNN(
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.ReLU,
-                ActivationType.ReLU
+                ActivationType.HYPERBOLIC_TANGENT,
+                ActivationType.HYPERBOLIC_TANGENT
         });
         network_target.SetWeightsData(network_eval.GetWeightsData());
 
@@ -185,7 +185,7 @@ public class CarRL : MonoBehaviour
 
         //Get reward
         float velocity = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
-        current_reward = velocity;
+        current_reward = Mathf.Clamp(Mathf.RoundToInt(velocity - 1.0f), -1, 1);
 
         //Get next state
         float[] next_state = car_camera.GetRays();
@@ -240,16 +240,12 @@ public class CarRL : MonoBehaviour
         if (batch_index.Length == 0)
             return;
 
-        float[] errors_mean = new float[actions.Length];
-        for (int j = 0; j < errors_mean.Length; j++)
-            errors_mean[j] = 0;
-
         //Compute network error
         for (int i = 0; i < batch_index.Length; i++)
         {
             //Compute `q_eval` and `q_target`
-            float[] q_eval = network_eval.Compute(car_memory[batch_index[i]].current_state);
-            float[] q_target = network_target.Compute(car_memory[batch_index[i]].next_state);
+            float[] q_target    = network_target.Compute(car_memory[batch_index[i]].next_state);
+            float[] q_eval      = network_eval.Compute(car_memory[batch_index[i]].current_state);
 
             //Compute reward
             float reward = car_memory[batch_index[i]].reward;            
@@ -262,17 +258,15 @@ public class CarRL : MonoBehaviour
                     max_q_target = j;
             }
             q_target[max_q_target] =  reward + reward_decay * q_target[max_q_target];
-
-            //Add error to errors mean
-            float[] error = SubtractArray(q_target, q_eval);
-            for (int j = 0; j < errors_mean.Length; j++)
-                errors_mean[j] += error[j];
+            float[] error = new float[actions.Length];
+            for (int j = 0; j < actions.Length; j++)
+            {
+                error[j] = (q_target[j] - q_eval[j]) * (q_target[j] - q_eval[j]);
+            }
+            
+            //Update weights using BP
+            network_eval.UpdateWeights(error, 0.01f, 0.00001f, 0.05f);
         }
-        for (int j = 0; j < errors_mean.Length; j++)
-            errors_mean[j] = errors_mean[j] / batch_index.Length;
-
-        //Update weights using BP
-        network_eval.UpdateWeights(errors_mean, 0.01f, 0.00001f, 0.05f);
 
         //Update epsilon
         if (epsilon < max_epsilon)
@@ -352,16 +346,6 @@ public class CarRL : MonoBehaviour
             shuffle[r] = temp;
         }
         return shuffle;
-    }
-
-    private float[] SubtractArray(float[] v1, float[] v2)
-    {
-        float[] rtn = new float[v1.Length];
-        for (int i = 0; i < rtn.Length; i++)
-        {
-            rtn[i] = v1[i] - v2[i];
-        }
-        return rtn;
     }
 
     /* ================ SAVE/LOAD WEIGHTS ================ */
