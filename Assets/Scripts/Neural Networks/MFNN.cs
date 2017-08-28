@@ -299,6 +299,7 @@ public class MFNN : BaseNetwork
 	{
 		switch(type)
 		{
+			case ActivationType.SOFTMAX:
 			case ActivationType.LOGISTIC_SIGMOID:
 				return Activation.LogisticSigmoidD(x);
 			case ActivationType.HYPERBOLIC_TANGENT:

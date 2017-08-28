@@ -85,15 +85,15 @@ public class CarRL : MonoBehaviour
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.ReLU,
-                ActivationType.ReLU
+                ActivationType.LOGISTIC_SIGMOID,
+                ActivationType.LOGISTIC_SIGMOID
         });
         network_target = new MFNN(
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.ReLU,
-                ActivationType.ReLU
+                ActivationType.LOGISTIC_SIGMOID,
+                ActivationType.LOGISTIC_SIGMOID
         });
 
         //Setup epsilon
@@ -183,7 +183,7 @@ public class CarRL : MonoBehaviour
 
         //Get reward
         float velocity = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
-        current_reward = velocity * 10.0f;
+        current_reward = velocity;
 
         //Get next state
         float[] next_state = car_camera.GetRays();
@@ -235,7 +235,6 @@ public class CarRL : MonoBehaviour
 
         //Get batch from memory
         int[] batch_index = CreateMemoryBatch();
-
         //Compute network error
         for (int i = 0; i < batch_index.Length; i++)
         {
@@ -253,9 +252,10 @@ public class CarRL : MonoBehaviour
             }
             reward[max_index] = car_memory[batch_index[i]].reward;
             
-            q_target = AddArray(reward, MultiplyArray(reward_decay, q_target));
-            float[] error = SquareArray(SubtractArray(q_target, q_eval));
 
+            q_target = AddArray(reward, MultiplyArray(reward_decay, q_target));
+            q_target = NormalizeArray(q_target);
+            float[] error = SubtractArray(q_target, q_eval);
             network_eval.UpdateWeights(error, 0.01f, 0.00001f, 0.05f);
         }
 
@@ -272,12 +272,11 @@ public class CarRL : MonoBehaviour
     {
         System.Random random = new System.Random();
 
-        int[] shuffle = ShuffleArray(memory_index);
-
         int batch_size = max_batch_size;
         if (memory_index <= max_batch_size)
             batch_size = memory_index;
 
+        int[] shuffle = ShuffleArray(batch_size);
         int[] batch = new int[batch_size];
         int batch_index = random.Next(0, memory_index - batch_size + 1);
         for (int i = batch_index; i < batch_size; i++)
@@ -370,12 +369,20 @@ public class CarRL : MonoBehaviour
         return rtn;
     }
 
-    private float[] SquareArray(float[] v1)
+    private float[] NormalizeArray(float[] v1)
     {
         float[] rtn = new float[v1.Length];
-        for (int i = 0; i < rtn.Length; i++)
+        float max = 0.0f;
+        for (int i = 0; i < v1.Length; i++)
         {
-            rtn[i] = v1[i] * v1[i];
+            if (max < v1[i])
+            {
+                max = v1[i];
+            }
+        }
+        for (int i = 0; i < v1.Length; i++)
+        {
+            rtn[i] = v1[i] / max;
         }
         return rtn;
     }
