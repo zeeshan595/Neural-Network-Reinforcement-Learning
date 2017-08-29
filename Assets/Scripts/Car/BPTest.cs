@@ -54,7 +54,7 @@ public class BPTest : MonoBehaviour
             {
                 if (t_values[max1] < t_values[j])
                     max1 = j;
-                if (y_values[max2] < t_values[j])
+                if (y_values[max2] < y_values[j])
                     max2 = j;
             }
             if (max1 == max2)
