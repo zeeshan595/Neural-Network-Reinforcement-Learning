@@ -95,7 +95,6 @@ public class CarRL : MonoBehaviour
                 ActivationType.ReLU,
                 ActivationType.ReLU
         });
-        network_target.SetWeightsData(network_eval.GetWeightsData());
 
         //Setup epsilon
         max_epsilon = 0.9f;
@@ -185,7 +184,7 @@ public class CarRL : MonoBehaviour
 
         //Get reward
         float velocity = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
-        current_reward += velocity - 1.0f;
+        current_reward = Mathf.RoundToInt(Mathf.Clamp(velocity, 0, 1));
 
         //Get next state
         float[] next_state = car_camera.GetRays();
@@ -250,17 +249,17 @@ public class CarRL : MonoBehaviour
             //Compute reward
             float reward = network_memory[batch_index[i]].reward;            
 
-            //Compute error
+            //Add reward and reward decay
             int max_q_target = network_memory[batch_index[i]].picked_action;
             q_target[max_q_target] =  reward + reward_decay * q_target[max_q_target];
+            //Compute error
             float[] error = new float[actions.Length];
             for (int j = 0; j < actions.Length; j++)
             {
-                error[j] = (q_target[j] - q_eval[j]) * (q_target[j] - q_eval[j]);
+                error[j] = Mathf.Pow(q_target[j] - q_eval[j], 2);
             }
-            
-            //Update weights using BP
-            network_eval.UpdateWeights(error, 0.01f, 0.00001f, 0.05f);
+            //Update weights using RMS-PROP
+            network_eval.UpdateWeights(error);
         }
 
         //Update epsilon

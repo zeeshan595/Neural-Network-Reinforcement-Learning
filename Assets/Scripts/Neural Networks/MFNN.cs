@@ -284,7 +284,7 @@ public class MFNN : BaseNetwork
 					//Compute momentum
 					synapsis_momentum[i][j][k] = momentum * synapsis_momentum[i][j][k] + learning_rate * synapsis_delta_error[i][j][k] / (Mathf.Sqrt(synapsis_delta_mean_sqr[i][j][k]) + eps);
 					//Update synapsis
-					synapsis[i][j][k] -= synapsis_momentum[i][j][k];
+					synapsis[i][j][k] += synapsis_momentum[i][j][k];
 				}
 
 				//Compute bias derivative error
@@ -294,7 +294,7 @@ public class MFNN : BaseNetwork
 				//Compute momentum
 				biases_momentum[i][j] = momentum * biases_momentum[i][j] + learning_rate * biases_delta_error[i][j] / (Mathf.Sqrt(biases_delta_mean_sqr[i][j]) + eps);
 				//Update bias
-				biases[i][j] -= biases_momentum[i][j];
+				biases[i][j] += biases_momentum[i][j];
 			}
 		}
 	}
