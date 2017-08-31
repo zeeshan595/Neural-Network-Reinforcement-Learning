@@ -46,7 +46,7 @@ public class CarRL : MonoBehaviour
 
     private     MFNN                network_eval;
     private     MFNN                network_target;
-    private     MemoryStructure[]   car_memory;
+    private     MemoryStructure[]   network_memory;
     private     int                 memory_index;
     private     float               max_epsilon;
     private     float               epsilon;
@@ -78,22 +78,22 @@ public class CarRL : MonoBehaviour
 
         //Setup memory
         memory_index = 0;
-        car_memory = new MemoryStructure[memory_size];
+        network_memory = new MemoryStructure[memory_size];
 
         //Setup networks
         network_eval = new MFNN(
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.HYPERBOLIC_TANGENT,
-                ActivationType.HYPERBOLIC_TANGENT
+                ActivationType.ReLU,
+                ActivationType.ReLU
         });
         network_target = new MFNN(
             new int[]{ 5, 20, actions.Length },
             new ActivationType[]{
                 ActivationType.NONE,
-                ActivationType.HYPERBOLIC_TANGENT,
-                ActivationType.HYPERBOLIC_TANGENT
+                ActivationType.ReLU,
+                ActivationType.ReLU
         });
         network_target.SetWeightsData(network_eval.GetWeightsData());
 
@@ -185,7 +185,7 @@ public class CarRL : MonoBehaviour
 
         //Get reward
         float velocity = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
-        current_reward = Mathf.Clamp(Mathf.RoundToInt(velocity - 1.0f), -1, 1);
+        current_reward += velocity - 1.0f;
 
         //Get next state
         float[] next_state = car_camera.GetRays();
@@ -244,19 +244,14 @@ public class CarRL : MonoBehaviour
         for (int i = 0; i < batch_index.Length; i++)
         {
             //Compute `q_eval` and `q_target`
-            float[] q_target    = network_target.Compute(car_memory[batch_index[i]].next_state);
-            float[] q_eval      = network_eval.Compute(car_memory[batch_index[i]].current_state);
+            float[] q_target    = network_target.Compute(network_memory[batch_index[i]].next_state);
+            float[] q_eval      = network_eval.Compute(network_memory[batch_index[i]].current_state);
 
             //Compute reward
-            float reward = car_memory[batch_index[i]].reward;            
+            float reward = network_memory[batch_index[i]].reward;            
 
             //Compute error
-            int max_q_target = 0;
-            for (int j = 1; j < q_target.Length; j++)
-            {
-                if (q_target[max_q_target] < q_target[j])
-                    max_q_target = j;
-            }
+            int max_q_target = network_memory[batch_index[i]].picked_action;
             q_target[max_q_target] =  reward + reward_decay * q_target[max_q_target];
             float[] error = new float[actions.Length];
             for (int j = 0; j < actions.Length; j++)
@@ -298,11 +293,11 @@ public class CarRL : MonoBehaviour
 
     private void StoreInformation(float[] current_state, float[] next_state, int action, float reward)
     {
-        car_memory[memory_index] = new MemoryStructure();
-        car_memory[memory_index].current_state  = current_state;
-        car_memory[memory_index].next_state     = next_state;
-        car_memory[memory_index].picked_action  = action;
-        car_memory[memory_index].reward         = reward;
+        network_memory[memory_index] = new MemoryStructure();
+        network_memory[memory_index].current_state  = current_state;
+        network_memory[memory_index].next_state     = next_state;
+        network_memory[memory_index].picked_action  = action;
+        network_memory[memory_index].reward         = reward;
         memory_index++;
         
         if (memory_index == memory_size)

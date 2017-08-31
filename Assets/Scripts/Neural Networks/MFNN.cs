@@ -14,8 +14,11 @@ public class MFNN : BaseNetwork
 	private		float[][][]			synapsis_delta_error;
 	private 	float[][]			biases_delta_error;
 
-	private 	float[][][]			prev_synapsis_delta_error;
-	private 	float[][]			prev_biases_delta_error;
+	/* ==================== RMS PROP ==================== */
+	private 	float[][][]			synapsis_delta_mean_sqr;
+	private 	float[][]			biases_delta_mean_sqr;
+	private 	float[][][]			synapsis_momentum;
+	private 	float[][]			biases_momentum;
 
 	public int GetInputSize()
 	{
@@ -70,39 +73,46 @@ public class MFNN : BaseNetwork
 		//Setup biases
 		biases = new float[neurons_per_layer.Length - 1][];
 		biases_delta_error = new float[neurons_per_layer.Length - 1][];
-		prev_biases_delta_error = new float[neurons_per_layer.Length - 1][];
+		biases_delta_mean_sqr = new float[neurons_per_layer.Length - 1][];
+		biases_momentum = new float[neurons_per_layer.Length - 1][];
 		for (int i = 0; i < biases.Length; i++)
 		{
 			biases[i] = new float[neurons_per_layer[i + 1]];
 			biases_delta_error[i] = new float[neurons_per_layer[i + 1]];
-			prev_biases_delta_error[i] = new float[neurons_per_layer[i + 1]];
+			biases_delta_mean_sqr[i] = new float[neurons_per_layer[i + 1]];
+			biases_momentum[i] = new float[neurons_per_layer[i + 1]];
 			for(int j = 0; j < biases[i].Length; j++)
 			{
 				biases[i][j] = Random.Range(-1.0f, 1.0f);
 				biases_delta_error[i][j] = Random.Range(-1.0f, 1.0f);
-				prev_biases_delta_error[i][j] = Random.Range(-1.0f, 1.0f);
+				biases_delta_mean_sqr[i][j] = 0;
+				biases_momentum[i][j] = 0;
 				weights_length++;
 			}
 		}
 		//Setup synapsis
 		synapsis = new float[neurons_per_layer.Length - 1][][];
 		synapsis_delta_error = new float[neurons_per_layer.Length - 1][][];
-		prev_synapsis_delta_error = new float[neurons_per_layer.Length - 1][][];
+		synapsis_delta_mean_sqr = new float[neurons_per_layer.Length - 1][][];
+		synapsis_momentum = new float[neurons_per_layer.Length - 1][][];
 		for (int i = 0; i < synapsis.Length; i++)
 		{
 			synapsis[i] = new float[neurons_per_layer[i + 1]][];
 			synapsis_delta_error[i] = new float[neurons_per_layer[i + 1]][];
-			prev_synapsis_delta_error[i] = new float[neurons_per_layer[i + 1]][];
+			synapsis_delta_mean_sqr[i] = new float[neurons_per_layer[i + 1]][];
+			synapsis_momentum[i] = new float[neurons_per_layer[i + 1]][];
 			for (int j = 0; j < synapsis[i].Length; j++)
 			{
 				synapsis[i][j] = new float[neurons_per_layer[i]];
 				synapsis_delta_error[i][j] = new float[neurons_per_layer[i]];
-				prev_synapsis_delta_error[i][j] = new float[neurons_per_layer[i]];
+				synapsis_delta_mean_sqr[i][j] = new float[neurons_per_layer[i]];
+				synapsis_momentum[i][j] = new float[neurons_per_layer[i]];
 				for (int k = 0; k < synapsis[i][j].Length; k++)
 				{
 					synapsis[i][j][k] = Random.Range(-1.0f, 1.0f);
 					synapsis_delta_error[i][j][k] = Random.Range(-1.0f, 1.0f);
-					prev_synapsis_delta_error[i][j][k] = Random.Range(-1.0f, 1.0f);
+					synapsis_delta_mean_sqr[i][j][k] = 0;
+					synapsis_momentum[i][j][k] = 0;
 					weights_length++;
 				}
 			}
@@ -222,9 +232,9 @@ public class MFNN : BaseNetwork
 		SetWeightsData(weights);
 	}
 
-	/* ==================== BACK PROPAGATION ==================== */
+	/* ==================== BACK PROPAGATION (RMS-PROP) ==================== */
 
-	public void UpdateWeights(float[] output_error, float learning_rate, float weight_decay, float momentum)
+	public void UpdateWeights(float[] output_error, float learning_rate = 0.001f, float weight_decay = 0.9f, float momentum = 0.9f, float eps = 0.00000001f)
 	{
 		//Error checking
 		Debug.Assert(output_error.Length == neurons[neurons.Length - 1].Length);
@@ -269,28 +279,22 @@ public class MFNN : BaseNetwork
 				{
 					//Compute synapsis derivative error
 					synapsis_delta_error[i][j][k] = neuron_delta_error[i + 1][j] * A * neurons[i][k];
+					//Compute derivative mean square
+					synapsis_delta_mean_sqr[i][j][k] = weight_decay * synapsis_delta_mean_sqr[i][j][k] + (1 - weight_decay) * Mathf.Pow(synapsis_delta_error[i][j][k], 2);
+					//Compute momentum
+					synapsis_momentum[i][j][k] = momentum * synapsis_momentum[i][j][k] + learning_rate * synapsis_delta_error[i][j][k] / (Mathf.Sqrt(synapsis_delta_mean_sqr[i][j][k]) + eps);
 					//Update synapsis
-					synapsis[i][j][k] += learning_rate * synapsis_delta_error[i][j][k];
-					//Apply Momentum
-					synapsis[i][j][k] += momentum * prev_synapsis_delta_error[i][j][k];
-					//Apply decay effect
-					synapsis[i][j][k] -= weight_decay * synapsis[i][j][k];
-					
-					//Store previous synapse derivative error
-					prev_synapsis_delta_error[i][j][k] = synapsis_delta_error[i][j][k];
+					synapsis[i][j][k] -= synapsis_momentum[i][j][k];
 				}
 
 				//Compute bias derivative error
 				biases_delta_error[i][j] = neuron_delta_error[i + 1][j] * A * 1.0f;
+				//Compute derivative mean square
+				biases_delta_mean_sqr[i][j] = weight_decay * biases_delta_mean_sqr[i][j] + (1 - weight_decay) * Mathf.Pow(biases_delta_error[i][j], 2);
+				//Compute momentum
+				biases_momentum[i][j] = momentum * biases_momentum[i][j] + learning_rate * biases_delta_error[i][j] / (Mathf.Sqrt(biases_delta_mean_sqr[i][j]) + eps);
 				//Update bias
-				biases[i][j] += learning_rate * biases_delta_error[i][j];
-				//Apply Momentum
-				biases[i][j] += momentum * prev_biases_delta_error[i][j];
-				//Apply decay effect
-				biases[i][j] -= weight_decay * biases[i][j];
-
-				//Store previous bias derivative error
-				prev_biases_delta_error[i][j] = biases_delta_error[i][j];
+				biases[i][j] -= biases_momentum[i][j];
 			}
 		}
 	}
