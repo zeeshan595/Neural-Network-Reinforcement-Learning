@@ -278,7 +278,6 @@ GameObject:
   - component: {fileID: 65706901345228342}
   - component: {fileID: 23953265651614234}
   - component: {fileID: 54193595744365724}
-  - component: {fileID: 114009001771461202}
   m_Layer: 8
   m_Name: Body
   m_TagString: Car
@@ -1024,19 +1023,6 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &114009001771461202
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1906598314252718}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 88dc7435398c94c48b0675400e55d71e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  gates_used: []
-  current_gate: {fileID: 0}
 --- !u!114 &114168015986476430
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -1114,9 +1100,9 @@ MonoBehaviour:
   text_log: {fileID: 0}
   max_batch_size: 32
   memory_size: 200
-  epsilon_increment: 0.01
+  epsilon_increment: 0.001
   learn_wait: 200
-  replace_target_iteration: 100
+  replace_target_iteration: 30
   reward_decay: 0.9
   reaction_time: 0.1
 --- !u!146 &146429156741779986

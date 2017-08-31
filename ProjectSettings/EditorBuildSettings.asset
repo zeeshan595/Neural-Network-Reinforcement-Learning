@@ -17,3 +17,6 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/PSO.unity
     guid: c5862fc55fa214b0bbd08dd0dd437e36
+  - enabled: 1
+    path: Assets/Scenes/RLPSO.unity
+    guid: 96b27f00893b1440999e33a602ad3856

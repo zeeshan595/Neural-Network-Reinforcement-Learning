@@ -11,9 +11,9 @@ public class CarRL : MonoBehaviour
     public Text text_log;
     public int max_batch_size = 32;
     public int memory_size = 200;
-    public float epsilon_increment = 0.01f;
+    public float epsilon_increment = 0.001f;
     public int learn_wait = 200;
-    public int replace_target_iteration = 100;
+    public int replace_target_iteration = 30;
     public float reward_decay = 0.9f;
     public float reaction_time = 0.1f;
 
@@ -62,6 +62,7 @@ public class CarRL : MonoBehaviour
 
     public void StopTraining()
     {
+        Time.timeScale = 1;
         is_activated = false;
     }
 
@@ -184,7 +185,7 @@ public class CarRL : MonoBehaviour
 
         //Get reward
         float velocity = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
-        current_reward = Mathf.RoundToInt(Mathf.Clamp(velocity, 0, 1));
+        current_reward = velocity;
 
         //Get next state
         float[] next_state = car_camera.GetRays();
@@ -202,7 +203,7 @@ public class CarRL : MonoBehaviour
         current_step++;
 
         //Reset trapped car
-        if (car_body.velocity.magnitude < 0.5f && current_step - reset_step > 100)
+        if (car_body.velocity.magnitude < 0.3f && current_step - reset_step > 100)
         {
             car_body.transform.position = car_spawner.transform.position;
             car_body.transform.rotation = car_spawner.transform.rotation;
@@ -256,7 +257,7 @@ public class CarRL : MonoBehaviour
             float[] error = new float[actions.Length];
             for (int j = 0; j < actions.Length; j++)
             {
-                error[j] = Mathf.Pow(q_target[j] - q_eval[j], 2);
+                error[j] = q_target[j] - q_eval[j];
             }
             //Update weights using RMS-PROP
             network_eval.UpdateWeights(error);
