@@ -113,6 +113,7 @@ public class CarRL : MonoBehaviour
         car_body.angularVelocity = Vector3.zero;
         action_index = 0;
         reset_step = current_step;
+        current_reward = 0;
 
         //Start loop
         StartCoroutine(DQNStep());
