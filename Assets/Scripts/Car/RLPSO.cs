@@ -30,6 +30,7 @@ public class RLPSO : MonoBehaviour
     };
 
 	private 	PSO 			particle_swarm;
+	private 	MFNN			network_target;
 	private		MFNN[]			particles;
 	private 	int 			working_particle;
 	private 	CarCamera		car_camera;
@@ -76,6 +77,7 @@ public class RLPSO : MonoBehaviour
 		for (int i = 0; i < particles.Length; i++)
 			particles[i] = CreateMFNN();
 		particle_swarm = new PSO(particles);
+		network_target = CreateMFNN();
 
 		StartCoroutine(TakeStep());
 	}
@@ -124,9 +126,17 @@ public class RLPSO : MonoBehaviour
 		//Wait for action to complete
 		yield return new WaitForSeconds(0.1f);
 
+		//Get next state
+		float[] next_state = car_camera.GetRays();
+		//Get max `a` of `q_target`
+		float[] q_target = network_target.Compute(next_state);
+		int max_q_target = 0;
+		for (int i = 1; i < max_q_target; i++)
+			if (q_target[max_q_target] < q_target[i])
+				max_q_target = i;
 		//Get rward for action
 		float velocity = car_body.gameObject.transform.InverseTransformDirection(car_body.velocity).z;
-        current_reward += velocity;
+        current_reward = velocity + reward_decay * q_target[max_q_target];
 		particles[working_particle].SetNetworkScore(current_reward);
 
 		//Reset car if stuck after 100 steps
@@ -149,6 +159,7 @@ public class RLPSO : MonoBehaviour
 		//Do a pso update after all particles
 		if (working_particle == max_particles)
 		{
+			network_target.SetWeightsData(particle_swarm.GetBestWeights());
 			//PSO Update Step
 			particle_swarm.ComputeEpoch();
 			particle_swarm.UpdateWeights();

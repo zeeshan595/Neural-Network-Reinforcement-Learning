@@ -252,7 +252,10 @@ public class CarRL : MonoBehaviour
             float reward = network_memory[batch_index[i]].reward;            
 
             //Add reward and reward decay
-            int max_q_target = network_memory[batch_index[i]].picked_action;
+            int max_q_target = 0;
+            for (int j = 0; j < q_target.Length; j++)
+                if (q_target[max_q_target] < q_target[j])
+                    max_q_target = j;
             q_target[max_q_target] =  reward + reward_decay * q_target[max_q_target];
             //Compute error
             float[] error = new float[actions.Length];
