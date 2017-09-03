@@ -179,13 +179,13 @@ public class Experiment : MonoBehaviour
 			functions_queued.Add(() => {
 				for (int i = 0; i < current_cars.Length; i++)
 				{
-					car_body[i].transform.position 	= spawner_position.transform.position;
-					car_body[i].transform.rotation 	= spawner_position.transform.rotation;
 					car_body[i].velocity 			= Vector3.zero;
 					car_body[i].angularVelocity 	= Vector3.zero;
+					car_body[i].transform.position 	= spawner_position.transform.position;
+					car_body[i].transform.rotation 	= spawner_position.transform.rotation;
 					car_score_manager[i].ResetScore();
-					thread_wait.Set();
 				}
+				thread_wait.Set();
 			});
 			thread_wait.WaitOne();
 			thread_wait.Reset();
