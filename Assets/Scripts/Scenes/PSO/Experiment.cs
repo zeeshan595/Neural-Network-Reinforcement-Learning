@@ -184,6 +184,7 @@ public class Experiment : MonoBehaviour
 					car_body[i].transform.position 	= spawner_position.transform.position;
 					car_body[i].transform.rotation 	= spawner_position.transform.rotation;
 					car_score_manager[i].ResetScore();
+					Debug.Log(i);
 				}
 				thread_wait.Set();
 			});
@@ -247,7 +248,7 @@ public class Experiment : MonoBehaviour
 			car_body[i]				= current_cars[i].transform.GetChild(0).gameObject.GetComponent<Rigidbody>();
 
 			car_intelligence[i].Start();
-			car_networks[i] 		= ObjectCopier.Clone<BaseNetwork>(car_intelligence[i].GetNetwork());
+			car_networks[i] 		= car_intelligence[i].GetNetwork();
 			car_networks[i].RandomizeWeights(i);
 		}
 		thread_wait.Set();
